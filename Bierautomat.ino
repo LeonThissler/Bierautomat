@@ -25,8 +25,8 @@ void loop() {
   unsigned long startTime = millis(); // Startzeit des Messvorgangs
   int coinCount = 0; // Anzahl der Impulse
   
-  // Innerhalb von 10 Sekunden zählen, wie viele Impulse kommen
-  while (millis() - startTime < 10000) {
+  // Innerhalb von 0,5s Sekunden zählen, wie viele Impulse kommen
+  while (millis() - startTime < 500) {
     if (digitalRead(coinInputPin) == HIGH) {
       delay(50); // Kurze Verzögerung für Stabilität
       coinCount++;
@@ -56,7 +56,7 @@ void loop() {
   }
 
   // delay damit Ausgänge lang genug gesetzt bleiben
-  delay(1000);
+  delay(500);
 
   // Setzt Ausgänge zurück
   digitalWrite(outputPin10, LOW);
