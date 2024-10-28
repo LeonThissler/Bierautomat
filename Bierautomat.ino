@@ -1,67 +1,97 @@
-//Programm ist noch nicht getestet
+const int pulsePin = 2; // Pin, an dem der Münzprüfer angeschlossen ist
+volatile int pulseCount = 0; // Anzahl der erkannten Pulse
+unsigned long lastPulseTime = 0; // Zeit des letzten Pulses
+const unsigned long resetTime = 2000; // Zeit in Millisekunden, nach der zurückgesetzt wird
+const unsigned long minPulseInterval = 100; // Minimaler Pulsintervall in Millisekunden
 
-// Pin-Definitionen 
-const int coinInputPin = 2; // Pin für den Münzeingang
-const int outputPin10 = 3;  // Ausgangspin für 10 Cent
-const int outputPin20 = 4;  // Ausgangspin für 20 Cent
-const int outputPin50 = 5;  // Ausgangspin für 50 Cent
-const int outputPin100 = 6; // Ausgangspin für 1 Euro
-const int outputPin200 = 7; // Ausgangspin für 2 Euro
+// Pins für die Ausgänge
+const int pin10Cent = 3;
+const int pin20Cent = 4;
+const int pin50Cent = 5;
+const int pin1Euro = 6;
+const int pin2Euro = 7;
+
+int lastPulseValue = 0; // Um die letzte Pulsanzahl zu speichern
+bool outputActive = false; // Status des Ausgangs
+unsigned long outputStartTime = 0; // Zeit, wann der Ausgang aktiviert wurde
+unsigned long pulseResetTime = 0; // Zeit, wann der Puls zurückgesetzt werden soll
+
+void countPulse() {
+  unsigned long currentTime = millis();
+  if (currentTime - lastPulseTime > minPulseInterval) {
+    pulseCount++; // Puls zählen
+    lastPulseTime = currentTime; // Zeit des letzten Pulses aktualisieren
+  }
+}
 
 void setup() {
-  // Initialisierung der Pins
-  pinMode(coinInputPin, INPUT);
-  pinMode(outputPin10, OUTPUT);
-  pinMode(outputPin20, OUTPUT);
-  pinMode(outputPin50, OUTPUT);
-  pinMode(outputPin100, OUTPUT);
-  pinMode(outputPin200, OUTPUT);
+  Serial.begin(9600); // Serielle Kommunikation starten
+  pinMode(pulsePin, INPUT_PULLUP); // Pin als Eingang mit Pull-Up aktivieren
+  attachInterrupt(digitalPinToInterrupt(pulsePin), countPulse, RISING); // Interrupt für steigende Flanke
 
-  // Startet die Serielle Kommunikation (zum Debuggen)
-  Serial.begin(9600);
+  // Setze die Ausgangspins
+  pinMode(pin10Cent, OUTPUT);
+  pinMode(pin20Cent, OUTPUT);
+  pinMode(pin50Cent, OUTPUT);
+  pinMode(pin1Euro, OUTPUT);
+  pinMode(pin2Euro, OUTPUT);
+  
+  // Alle Ausgänge auf LOW setzen
+  digitalWrite(pin10Cent, LOW);
+  digitalWrite(pin20Cent, LOW);
+  digitalWrite(pin50Cent, LOW);
+  digitalWrite(pin1Euro, LOW);
+  digitalWrite(pin2Euro, LOW);
 }
 
 void loop() {
-  unsigned long startTime = millis(); // Startzeit des Messvorgangs
-  int coinCount = 0; // Anzahl der Impulse
-  
-  // Innerhalb von 0,5s Sekunden zählen, wie viele Impulse kommen
-  while (millis() - startTime < 500) {
-    if (digitalRead(coinInputPin) == HIGH) {
-      delay(50); // Kurze Verzögerung für Stabilität
-      coinCount++;
+  // Überprüfen, ob die Zeit seit dem letzten Puls größer als resetTime ist
+  if (millis() - lastPulseTime >= resetTime) {
+    // Speichere die letzte Pulsanzahl
+    lastPulseValue = pulseCount;
+
+    // Aktiviere den entsprechenden Ausgang basierend auf lastPulseValue
+    switch (lastPulseValue) {
+      case 1:
+        digitalWrite(pin10Cent, HIGH); // 10 Cent
+        break;
+      case 2:
+        digitalWrite(pin20Cent, HIGH); // 20 Cent
+        break;
+      case 3:
+        digitalWrite(pin50Cent, HIGH); // 50 Cent
+        break;
+      case 4:
+        digitalWrite(pin1Euro, HIGH); // 1 Euro
+        break;
+      case 5:
+        digitalWrite(pin2Euro, HIGH); // 2 Euro
+        break;
+      default:
+        // Keine Aktion für mehr als 5 Pulse
+        break;
+    }
+
+    outputStartTime = millis(); // Zeit, wann der Ausgang aktiviert wurde
+    pulseResetTime = outputStartTime + 40; // Setze Zeit für Pulsreset
+    outputActive = true; // Status auf aktiv setzen
+  }
+
+  // Wenn der Ausgang aktiv ist, warte 500 ms und setze ihn dann auf LOW
+  if (outputActive && (millis() - outputStartTime >= 500)) {
+    // Setze alle Ausgänge auf LOW
+    digitalWrite(pin10Cent, LOW);
+    digitalWrite(pin20Cent, LOW);
+    digitalWrite(pin50Cent, LOW);
+    digitalWrite(pin1Euro, LOW);
+    digitalWrite(pin2Euro, LOW);
+    
+    outputActive = false; // Ausgang deaktivieren
+
+    // Setze die Pulsanzahl zurück, nachdem 40 ms vergangen sind
+    if (millis() >= pulseResetTime) {
+      pulseCount = 0; // Pulsanzahl zurücksetzen
+      lastPulseTime = millis(); // Zurücksetzen des Zeitstempels
     }
   }
-
-  // Überprüft den Wert der Münze basierend auf der Anzahl der Impulse
-  switch (coinCount) {
-    case 1: // 10 Cent
-      digitalWrite(outputPin10, HIGH);
-      break;
-    case 2: // 20 Cent
-      digitalWrite(outputPin20, HIGH);
-      break;
-    case 3: // 50 Cent
-      digitalWrite(outputPin50, HIGH);
-      break;
-    case 4: // 1 Euro
-      digitalWrite(outputPin100, HIGH);
-      break;
-    case 5: // 2 Euro
-      digitalWrite(outputPin200, HIGH);
-      break;
-    default:
-     
-      break;
-  }
-
-  // delay damit Ausgänge lang genug gesetzt bleiben
-  delay(500);
-
-  // Setzt Ausgänge zurück
-  digitalWrite(outputPin10, LOW);
-  digitalWrite(outputPin20, LOW);
-  digitalWrite(outputPin50, LOW);
-  digitalWrite(outputPin100, LOW);
-  digitalWrite(outputPin200, LOW);
 }
